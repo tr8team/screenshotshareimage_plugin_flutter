@@ -113,7 +113,7 @@ public class ScreenshotShareImagePlugin implements MethodCallHandler {
     }
 
     Intent intent = new Intent();
-    intent.setAction(Intent.ACTION_VIEW);
+    intent.setAction(Intent.ACTION_SEND);
     Uri uri = Uri.fromFile(imageFile);
     intent.setDataAndType(uri, "image/*");
     activity.startActivity(intent);
