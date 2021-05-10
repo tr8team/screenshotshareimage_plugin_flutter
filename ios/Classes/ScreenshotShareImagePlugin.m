@@ -1,3 +1,4 @@
+#import <Flutter/FlutterChannels.h>
 #import "ScreenshotShareImagePlugin.h"
 
 @implementation ScreenshotShareImagePlugin
