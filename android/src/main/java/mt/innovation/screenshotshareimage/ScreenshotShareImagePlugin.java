@@ -59,7 +59,7 @@ public class ScreenshotShareImagePlugin implements MethodCallHandler {
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
               if (activity.checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
-                takeScreenshot("screenshot");
+                takeScreenshot("screenshot_" + System.currentTimeMillis());
                 return true;
               } else {
 
@@ -86,11 +86,11 @@ public class ScreenshotShareImagePlugin implements MethodCallHandler {
   public void onMethodCall(MethodCall call, Result result) {
     if (call.method.equals("takeScreenshotAndShare")) {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-        takeScreenshotWithoutExternalStorage("screenshot");
+        takeScreenshotWithoutExternalStorage("screenshot_" + System.currentTimeMillis());
       } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
         activity.requestPermissions(new String[]{ android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, WRITE_ACCESS_REQUEST_ID);
       } else {
-        takeScreenshot("screenshot");
+        takeScreenshot("screenshot_" + System.currentTimeMillis());
       }
 
     } else {
@@ -105,6 +105,10 @@ public class ScreenshotShareImagePlugin implements MethodCallHandler {
 
       contentValues.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName + ".jpg");
       contentValues.put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg");
+      contentValues.put(
+          MediaStore.Images.Media.RELATIVE_PATH,
+          Environment.DIRECTORY_PICTURES + "/" + "Gotrade"
+      );
 
       Bitmap bitmap = flutterView.getBitmap();
 
@@ -170,7 +174,7 @@ public class ScreenshotShareImagePlugin implements MethodCallHandler {
   private void takeScreenshot(String fileName) {
     try {
       // image naming and path  to include sd card  appending name you choose for file
-      String mPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).toString() + "/" + fileName + ".jpg";
+      String mPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).toString() + "/Gotrade/" + fileName + ".jpg";
       Bitmap bitmap = flutterView.getBitmap();
 
       File imageFile = new File(mPath);
