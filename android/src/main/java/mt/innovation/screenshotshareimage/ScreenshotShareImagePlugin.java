@@ -200,7 +200,9 @@ public class ScreenshotShareImagePlugin implements MethodCallHandler {
     Uri uri = Uri.fromFile(imageFile);
     intent.putExtra(Intent.EXTRA_STREAM, uri);
     intent.setType("image/*");
-    activity.startActivity(intent);
+    activity.startActivity(
+      Intent.createChooser(intent, "Share Screenshot")
+    );
   }
 
   private String getPathFromURI(Uri uri) {
