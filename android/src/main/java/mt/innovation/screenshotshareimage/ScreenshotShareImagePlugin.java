@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.ContentValues;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
@@ -19,6 +20,10 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
 
+import io.flutter.embedding.engine.plugins.FlutterPlugin;
+import io.flutter.embedding.engine.plugins.activity.ActivityAware;
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
+import io.flutter.embedding.engine.renderer.FlutterRenderer;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
@@ -28,31 +33,70 @@ import io.flutter.plugin.common.PluginRegistry.Registrar;
 import io.flutter.view.FlutterView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 
 /** ScreenshotShareImagePlugin */
-public class ScreenshotShareImagePlugin implements MethodCallHandler {
+public class ScreenshotShareImagePlugin implements FlutterPlugin, MethodCallHandler, ActivityAware {
 
   private static final String TAG = "ScreenshotShareImagePlugin";
 
-  private Registrar registrar;
-  private Activity activity;
-  private FlutterView flutterView;
+  private Context context;
+  private FlutterRenderer renderer;
   private MethodChannel channel;
+
+  @Nullable
+  private Activity activity;
+
   private final int WRITE_ACCESS_REQUEST_ID = 12;
 
-  public ScreenshotShareImagePlugin(Registrar registrar, Activity activity, FlutterView flutterView, MethodChannel channel) {
-    this.registrar = registrar;
-    this.activity = activity;
-    this.flutterView = flutterView;
-    this.channel = channel;
-    this.channel.setMethodCallHandler(this);
-    setRequestPermissionListener();
+  public static void setup(ScreenshotShareImagePlugin plugin, Context context, FlutterRenderer renderer, MethodChannel channel) {
+    plugin.context = context;
+    plugin.renderer = renderer;
+    plugin.channel = channel;
+    plugin.channel.setMethodCallHandler(plugin);
   }
 
-  private void setRequestPermissionListener() {
+  @Override
+  public void onAttachedToEngine(@NonNull FlutterPluginBinding binding) {
+    final MethodChannel channel = new MethodChannel(binding.getBinaryMessenger(), "screenshot_share_image");
+    ScreenshotShareImagePlugin.setup(
+        this,
+        binding.getApplicationContext(),
+        binding.getFlutterEngine().getRenderer(),
+        channel
+    );
+  }
+
+  @Override
+  public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
+
+  }
+
+
+  @Override
+  public void onAttachedToActivity(@NonNull ActivityPluginBinding binding) {
+    activity = binding.getActivity();
+    setRequestPermissionListener(binding);
+  }
+
+  @Override
+  public void onDetachedFromActivityForConfigChanges() { }
+
+  @Override
+  public void onReattachedToActivityForConfigChanges(@NonNull ActivityPluginBinding binding) { }
+
+  @Override
+  public void onDetachedFromActivity() {
+    activity = null;
+  }
+
+  private void setRequestPermissionListener(@NonNull final ActivityPluginBinding binding) {
+    if (activity == null) return;
+
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-      registrar.addRequestPermissionsResultListener(new PluginRegistry.RequestPermissionsResultListener() {
+      binding.addRequestPermissionsResultListener(new PluginRegistry.RequestPermissionsResultListener() {
         @Override
         public boolean onRequestPermissionsResult(int i, String[] strings, int[] ints) {
           if (i == WRITE_ACCESS_REQUEST_ID) {
@@ -76,19 +120,15 @@ public class ScreenshotShareImagePlugin implements MethodCallHandler {
     // Else, we do nothing for Android 30+
   }
 
-  /** Plugin registration. */
-  public static void registerWith(Registrar registrar) {
-    final MethodChannel channel = new MethodChannel(registrar.messenger(), "screenshot_share_image");
-    channel.setMethodCallHandler(new ScreenshotShareImagePlugin(registrar, registrar.activity(), registrar.view(), channel));
-  }
-
   @Override
   public void onMethodCall(MethodCall call, Result result) {
     if (call.method.equals("takeScreenshotAndShare")) {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
         takeScreenshotWithoutExternalStorage("screenshot_" + System.currentTimeMillis());
       } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-        activity.requestPermissions(new String[]{ android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, WRITE_ACCESS_REQUEST_ID);
+        if (activity != null) {
+          activity.requestPermissions(new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, WRITE_ACCESS_REQUEST_ID);
+        }
       } else {
         takeScreenshot("screenshot_" + System.currentTimeMillis());
       }
@@ -110,17 +150,17 @@ public class ScreenshotShareImagePlugin implements MethodCallHandler {
           Environment.DIRECTORY_PICTURES + "/" + "Gotrade"
       );
 
-      Bitmap bitmap = flutterView.getBitmap();
+      Bitmap bitmap = renderer.getBitmap();
 
       Uri uri = checkIfUriExistOnPublicDirectory(fileName);
       if (uri ==  null) {
-        uri = activity.getContentResolver().insert(
+        uri = context.getContentResolver().insert(
             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
             contentValues
         );
       }
 
-      OutputStream outputStream = activity.getContentResolver().openOutputStream(uri);
+      OutputStream outputStream = context.getContentResolver().openOutputStream(uri);
       File imageFile = new File(getPathFromURI(uri));
 
       int quality = 100;
@@ -137,7 +177,7 @@ public class ScreenshotShareImagePlugin implements MethodCallHandler {
 
   @RequiresApi(api = Build.VERSION_CODES.Q)
   public Uri checkIfUriExistOnPublicDirectory(String fileName) {
-    ContentResolver resolver = activity.getContentResolver();
+    ContentResolver resolver = context.getContentResolver();
     String[] projections = {
         MediaStore.MediaColumns._ID,
     };
@@ -175,7 +215,7 @@ public class ScreenshotShareImagePlugin implements MethodCallHandler {
     try {
       // image naming and path  to include sd card  appending name you choose for file
       String mPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).toString() + "/Gotrade/" + fileName + ".jpg";
-      Bitmap bitmap = flutterView.getBitmap();
+      Bitmap bitmap = renderer.getBitmap();
 
       File imageFile = new File(mPath);
 
@@ -194,24 +234,24 @@ public class ScreenshotShareImagePlugin implements MethodCallHandler {
 
   private void openScreenshot(File imageFile) {
     StrictMode.VmPolicy.Builder builder = null;
-    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.GINGERBREAD) {
-      builder = new StrictMode.VmPolicy.Builder();
-      StrictMode.setVmPolicy(builder.build());
-    }
+    builder = new StrictMode.VmPolicy.Builder();
+    StrictMode.setVmPolicy(builder.build());
 
     Intent intent = new Intent();
     intent.setAction(Intent.ACTION_SEND);
     Uri uri = Uri.fromFile(imageFile);
     intent.putExtra(Intent.EXTRA_STREAM, uri);
     intent.setType("image/*");
-    activity.startActivity(
-      Intent.createChooser(intent, "Share Screenshot")
-    );
+    if (activity != null) {
+      activity.startActivity(
+          Intent.createChooser(intent, "Share Screenshot")
+      );
+    }
   }
 
   private String getPathFromURI(Uri uri) {
     String[] projection = { MediaStore.Images.Media.DATA };
-    Cursor cursor = activity.getContentResolver().query(uri, projection, null, null, null);
+    Cursor cursor = context.getContentResolver().query(uri, projection, null, null, null);
 
     // Sanity check
     if (cursor == null) return null;
