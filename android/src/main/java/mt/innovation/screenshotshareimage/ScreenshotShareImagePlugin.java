@@ -109,7 +109,8 @@ public class ScreenshotShareImagePlugin implements FlutterPlugin, MethodCallHand
                 takeScreenshot("screenshot_" + System.currentTimeMillis());
                 return true;
               } else if (activity.shouldShowRequestPermissionRationale(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-                new AlertDialog.Builder(context)
+                try {
+                  new AlertDialog.Builder(activity)
                       .setTitle("Storage Permission")
                       .setMessage("We require the storage permission to create and store the screenshots.")
                       .setCancelable(true)
@@ -123,6 +124,9 @@ public class ScreenshotShareImagePlugin implements FlutterPlugin, MethodCallHand
                         }
                       })
                       .show();
+                } catch (Exception exception) {
+                  // We do nothing here
+                }
               } else {
                 activity.requestPermissions(new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, 11);
                 return false;
