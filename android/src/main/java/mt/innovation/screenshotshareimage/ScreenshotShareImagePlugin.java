@@ -1,10 +1,12 @@
 package mt.innovation.screenshotshareimage;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
@@ -14,6 +16,7 @@ import android.os.Build;
 import android.os.Environment;
 import android.os.StrictMode;
 import android.provider.MediaStore;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import java.io.File;
@@ -105,8 +108,22 @@ public class ScreenshotShareImagePlugin implements FlutterPlugin, MethodCallHand
               if (activity.checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
                 takeScreenshot("screenshot_" + System.currentTimeMillis());
                 return true;
+              } else if (activity.shouldShowRequestPermissionRationale(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+                new AlertDialog.Builder(context)
+                      .setTitle("Storage Permission")
+                      .setMessage("We require the storage permission to create and store the screenshots.")
+                      .setCancelable(true)
+                      .setPositiveButton("Allow", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                          Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                          Uri uri = Uri.fromParts("package", activity.getPackageName(), null);
+                          intent.setData(uri);
+                          activity.startActivity(intent);
+                        }
+                      })
+                      .show();
               } else {
-
                 activity.requestPermissions(new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, 11);
                 return false;
               }
@@ -213,6 +230,13 @@ public class ScreenshotShareImagePlugin implements FlutterPlugin, MethodCallHand
 
   private void takeScreenshot(String fileName) {
     try {
+      String directoryPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).toString() + "/Gotrade/";
+      File dirFile = new File(directoryPath);
+
+      if (!dirFile.exists()) {
+        dirFile.mkdirs();
+      }
+
       // image naming and path  to include sd card  appending name you choose for file
       String mPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).toString() + "/Gotrade/" + fileName + ".jpg";
       Bitmap bitmap = renderer.getBitmap();
