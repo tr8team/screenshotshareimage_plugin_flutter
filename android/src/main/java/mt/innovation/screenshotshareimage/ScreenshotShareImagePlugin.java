@@ -111,8 +111,8 @@ public class ScreenshotShareImagePlugin implements FlutterPlugin, MethodCallHand
               } else if (activity.shouldShowRequestPermissionRationale(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
                 try {
                   new AlertDialog.Builder(activity)
-                      .setTitle("Storage Permission")
-                      .setMessage("We require the storage permission to create and store the screenshots.")
+                      .setTitle("Want to tell your friends?")
+                      .setMessage("We need permission to create and store this screenshot on your phone so you can share it. Please tap on the button below to enable sharing and then try again.")
                       .setCancelable(true)
                       .setPositiveButton("Allow", new DialogInterface.OnClickListener() {
                         @Override
